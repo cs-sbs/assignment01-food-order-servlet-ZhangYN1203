@@ -7,7 +7,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - uses: actions/checkout@v4
 
       - name: Setup Java
@@ -22,16 +21,51 @@ jobs:
 
       - name: Start Server
         run: |
-          mvn -q jetty:run &
-          for i in {1..60}; do
-            if curl -sSf http://localhost:8080/ >/dev/null; then
+          echo "=== Starting Jetty server ==="
+          mvn jetty:run > jetty.log 2>&1 &
+          SERVER_PID=$!
+          echo "Server started with PID: $SERVER_PID"
+          
+          # Wait for server to start
+          echo "=== Waiting for server to start ==="
+          for i in {1..120}; do
+            if curl -s http://localhost:8080/ >/dev/null 2>&1; then
+              echo "✓ Server started successfully after $i seconds"
               break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "=== Checking server logs (30s) ==="
+              tail -20 jetty.log
+            fi
+            if [ $i -eq 60 ]; then
+              echo "=== Checking server logs (60s) ==="
+              tail -20 jetty.log
             fi
             sleep 1
           done
-          curl -sSf http://localhost:8080/ >/dev/null
+          
+          # Verify server is running
+          echo "=== Verifying server status ==="
+          curl -s http://localhost:8080/ >/dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "✗ Server failed to start"
+            echo "=== Full server logs ==="
+            cat jetty.log
+            exit 1
+          fi
+          echo "✓ Server is responding"
+
+      - name: Test Server Connectivity
+        run: |
+          echo "=== Testing server connectivity ==="
+          echo "Testing /menu endpoint..."
+          curl -v http://localhost:8080/menu
+          echo "\nTesting / endpoint..."
+          curl -v http://localhost:8080/
 
       - name: Run Tests
         run: |
+          echo "=== Running tests ==="
           chmod +x src/test/*.sh
+          ls -la src/test/
           bash src/test/run_all_tests.sh
