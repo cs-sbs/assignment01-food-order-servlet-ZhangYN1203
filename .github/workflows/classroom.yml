@@ -1,0 +1,37 @@
+name: Autograding
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Build
+        run: mvn -q -DskipTests package
+
+      - name: Start Server
+        run: |
+          mvn -q jetty:run &
+          for i in {1..60}; do
+            if curl -sSf http://localhost:8080/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -sSf http://localhost:8080/ >/dev/null
+
+      - name: Run Tests
+        run: |
+          chmod +x src/test/*.sh
+          bash src/test/run_all_tests.sh
