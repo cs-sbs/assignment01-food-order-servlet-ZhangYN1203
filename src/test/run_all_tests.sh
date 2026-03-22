@@ -2,7 +2,7 @@
 
 echo "Running all tests for Servlet Order System..."
 
-BASE_URL="http://localhost:8081"
+BASE_URL="http://localhost:8080"
 PASSED=0
 FAILED=0
 
